@@ -1,0 +1,14 @@
+---
+title: "Module 0 - Intro to machine learning"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## k-NN
+This is a non-parametric method to estimate the $\hat{f(\cdot)}$. The concept is that similar data points tend to have similar outcomes. The method is that you pick $x_i$ which will give you $y_i$. Then, you find $k$ closest $y$ to that $y_i$. Your $\hat{y_i}$ is the mean (average) of those $y$.  
+This means when you lower the $k$, your model is more sensitive to outliers and noise. While higher the $k$, your model misses local variation. Because you pick the a large band, the average would not change so much over the $x$.
+
+## 
