@@ -1,0 +1,124 @@
+---
+title: "Machine Learning Course project"
+author: "Amnist O."
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+    keep_md: yes
+    code_folding: hide
+    fig_width: 6.5
+    fig_height: 4
+  pdf_document:
+    df_print: kable
+    toc: yes
+    keep_tex: yes
+    fig_width: 6.5
+    fig_height: 4
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set( message = FALSE, warning = FALSE, results =TRUE, echo = TRUE) 
+
+```
+
+
+```{r Knitr_Global_Options, include=FALSE, cache=FALSE}
+library(knitr)
+opts_chunk$set(warning = FALSE, message = FALSE, 
+               autodep = TRUE, tidy = FALSE, cache = TRUE)
+#opts_chunk$set(cache.rebuild=TRUE) 
+# My colors:
+SIAP.color <- "#0385a8"
+orange.color <- "#FF7F00"
+```
+
+`r if(knitr:::pandoc_to() == "latex") {paste("\\large")}` 
+
+```{r packages, include=FALSE, cache = FALSE}
+# Data management packages
+library(tidyverse)
+library(forcats)
+library(modelsummary)
+
+# Plotting packages
+library(RColorBrewer)
+library(purrr)
+library(rattle)
+library(ggcorrplot)
+library(grid)
+
+# Model fitting packages
+library(rpart)
+library(caret)
+library(leaps)  
+library(ModelMetrics)
+
+# Nice presentation of results
+library(knitr)
+library(papeR)
+library(xtable)
+library(kableExtra)
+
+```
+
+```{r,  include=FALSE}
+# Sets up parallel computing for more efficient training
+library(parallel)
+nrcore <- detectCores()
+cl <- parallel::makeCluster(nrcore-2, setup_strategy = "sequential")
+
+library(doParallel)
+registerDoParallel(cl)
+```
+
+
+```{r Setseeds, echo=FALSE}
+# This function is there to help you use parallel computing
+# You do not need to change anything there nor to understand what's cooking in here
+# function to set up random seeds
+setSeeds <- function(method = "cv", 
+                     numbers = 1, repeats = 1, 
+                     tunes = NULL, seed = 123) 
+  {
+#B is the number of re-samples and integer vector 
+# of M (numbers + tune length if any)
+  B <- if (method == "cv") numbers
+  else if(method == "repeatedcv") numbers * repeats
+  else NULL
+  
+  if(is.null(length)) {
+    seeds <- NULL
+  } else {
+    set.seed(seed = seed)
+    seeds <- vector(mode = "list", length = B)
+    seeds <- 
+      lapply(seeds, function(x) 
+        sample.int(n = 1000000, 
+                   size = numbers + ifelse(is.null(tunes), 
+                                           0, tunes)))
+    seeds[[length(seeds) + 1]] <- 
+      sample.int(n = 1000000, size = 1)
+  }
+  # return seeds
+  seeds
+}
+```
+
+# Workflow of the project
+The general workflow for this analysis follows these main steps: 
+
+- Explore the data set
+- Prepare the analysis using the right variable transformations
+- Select the variables using LASSO
+- Interpret the results and use them to reduce the complexity of the analysis
+- Fit a Random Forest model
+- Conclude the analysis
+
+The data set can be used directly from the SIAP's server. If you need, you can  also download it an use it locally.
+
+```{r load data}
+# Reading DHS survey data from SIAP's website
+df <- read.csv("https://www.unsiap.or.jp/on_line/ML/M6-clean_data.csv")
+```
