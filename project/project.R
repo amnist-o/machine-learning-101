@@ -88,10 +88,15 @@ ggcorrplot(corr_coef,
            outline.col = "white",  #Color options
            lab = TRUE) + 
   ggtitle("Correlation between numerical variables")
-
+# Plot histogram of price
 df %>%
-  ggplot(aes(x=review_scores_rating,y=price,colour = neighborhood))+
-  geom_point()
+  ggplot(aes(x=price))+
+  geom_histogram()
+# Plot histogram of price by beds and property type
+df %>%
+  ggplot(aes(x=log1p(price)))+
+  geom_histogram()+
+  facet_grid(beds~property_type,scale="free")
 
 # Splits data into training and testing sets
 set.seed(777)
@@ -106,9 +111,9 @@ train_data <- predict(ScalingValues, train_data)
 validation_data <- predict(ScalingValues, validation_data)
 
 # Control variables
-numbers <- 5
+numbers <- 10
 repeats <- 20
-rcvTunes <- 10 # tune number of models
+rcvTunes <- 15 # tune number of models
 seed <- 123
 # repeated cross validation
 rcvSeeds <- setSeeds(method = "repeatedcv", 
@@ -121,9 +126,28 @@ rcvControl <- trainControl(method = "repeatedcv",
                            number = numbers, repeats = repeats,
                            seeds = rcvSeeds)
 
-
+# Prepare the formula -----
+## Preparing variables
+outcome_var <- "price"
+predictor_vars <- setdiff(names(df),outcome_var)
+numeric_vars <- df %>% select(where(is.numeric)&!outcome_var) %>% names()
+## Interaction terms
+interaction_pairs <- combn(predictor_vars,2)
+interaction_terms <- apply(interaction_pairs, 2, function(pair){
+  paste(pair,collapse=":")
+})
+print(interaction_terms)
+## Squared terms
+squared_terms <- paste0("I(",numeric_vars,"^2)")
+print(squared_terms)
+## Full formula
+formula_string <- paste(outcome_var,"~",
+                        paste(c(predictor_vars,interaction_terms,squared_terms),
+                              collapse = "+"))
+full_formula <- as.formula(formula_string)
+# Train data -----
 set.seed(123)
-lasso_fit <- train(price ~ .,
+lasso_fit <- train(full_formula,
                    data = train_data, 
                    method = "glmnet",
                    tuneGrid = expand.grid(alpha = 1, 
