@@ -44,31 +44,7 @@ registerDoParallel(cl)
 # This function is there to help you use parallel computing
 # You do not need to change anything there nor to understand what's cooking in here
 # function to set up random seeds
-setSeeds <- function(method = "cv", 
-                     numbers = 1, repeats = 1, 
-                     tunes = NULL, seed = 123) 
-{
-  #B is the number of re-samples and integer vector 
-  # of M (numbers + tune length if any)
-  B <- if (method == "cv") numbers
-  else if(method == "repeatedcv") numbers * repeats
-  else NULL
-  
-  if(is.null(length)) {
-    seeds <- NULL
-  } else {
-    set.seed(seed = seed)
-    seeds <- vector(mode = "list", length = B)
-    seeds <- 
-      lapply(seeds, function(x) 
-        sample.int(n = 1000000, 
-                   size = numbers + ifelse(is.null(tunes), 
-                                           0, tunes)))
-    seeds[[length(seeds) + 1]] <- 
-      sample.int(n = 1000000, size = 1)
-  }
-  # return seeds
-}
+
 
 # Load data -----
 # Reading DHS survey data from SIAP's website
@@ -115,16 +91,11 @@ numbers <- 10
 repeats <- 20
 rcvTunes <- 15 # tune number of models
 seed <- 123
-# repeated cross validation
-rcvSeeds <- setSeeds(method = "repeatedcv", 
-                     numbers = numbers, repeats = repeats, 
-                     tunes = rcvTunes, seed = seed)
-
-
 # Controls for the CV 
 rcvControl <- trainControl(method = "repeatedcv", 
-                           number = numbers, repeats = repeats,
-                           seeds = rcvSeeds)
+                           number = numbers, 
+                           repeats = repeats,
+                           seed = seed)
 
 # Prepare the formula -----
 ## Preparing variables
@@ -154,7 +125,7 @@ lasso_fit <- train(full_formula,
                                           # grid to search
                                           lambda = seq(from =0,
                                                        to=0.003,
-                                                       length = 5)),
+                                                       length = 10)),
                    trControl = rcvControl)
 
 ggplot(lasso_fit)   +
