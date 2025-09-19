@@ -92,3 +92,72 @@ ggcorrplot(corr_coef,
 df %>%
   ggplot(aes(x=review_scores_rating,y=price,colour = neighborhood))+
   geom_point()
+
+# Splits data into training and testing sets
+set.seed(777)
+trainIndex <- createDataPartition(df$price, p = 0.5, list = FALSE, times = 1)
+
+train_data <- df[trainIndex,]
+validation_data  <- df[-trainIndex,]
+
+# Scale the training and test data based on the training data mean and variance.
+ScalingValues <- preProcess(train_data, method = c("center", "scale"))
+train_data <- predict(ScalingValues, train_data)
+validation_data <- predict(ScalingValues, validation_data)
+
+# Control variables
+numbers <- 5
+repeats <- 20
+rcvTunes <- 10 # tune number of models
+seed <- 123
+# repeated cross validation
+rcvSeeds <- setSeeds(method = "repeatedcv", 
+                     numbers = numbers, repeats = repeats, 
+                     tunes = rcvTunes, seed = seed)
+
+
+# Controls for the CV 
+rcvControl <- trainControl(method = "repeatedcv", 
+                           number = numbers, repeats = repeats,
+                           seeds = rcvSeeds)
+
+
+set.seed(123)
+lasso_fit <- train(price ~ .,
+                   data = train_data, 
+                   method = "glmnet",
+                   tuneGrid = expand.grid(alpha = 1, 
+                                          # grid to search
+                                          lambda = seq(from =0,
+                                                       to=0.003,
+                                                       length = 5)),
+                   trControl = rcvControl)
+
+ggplot(lasso_fit)   +
+  ggtitle("Lasso Penalization") +
+  labs(x = "Regularization parameter (Lambda)")+
+  theme_minimal()
+
+cbind(lasso_fit$bestTune$lambda)  %>% 
+  kable(digits=3, col.names = c("lambda (exp)")) %>%
+  kable_styling()
+
+theme_models <-  theme_minimal()+ theme(plot.title = element_text(hjust = 0.5),
+                                        legend.position = "none") 
+
+lasso_varImp <- data.frame(variables = row.names(varImp(lasso_fit)$importance), varImp(lasso_fit)$importance)
+# Below we set that we only show feature importance with a value larger than 3
+# You can lower this if you want to see more variables, or increase it if you want to see fewer.
+threshold = 2
+lasso_varImp <- lasso_varImp[lasso_varImp$Overall > threshold,]
+ggplot(data = lasso_varImp, mapping = aes(x=reorder(variables, Overall),
+                                          y=Overall,
+                                          fill=variables)) +
+  coord_flip() + geom_bar(stat = "identity", position = "dodge") +
+  theme_models +
+  labs(x = "", y = "") +
+  ggtitle("Feature Importance Lasso Regression") 
+
+
+lasso_preds <- predict(lasso_fit, validation_data)
+rmse(actual = validation_data$price, predicted = lasso_preds)
